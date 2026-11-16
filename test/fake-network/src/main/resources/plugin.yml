@@ -1,6 +1,6 @@
 # Nur für Tests: tut so, als wäre es das Netzwerk-Plugin.
-name: MoinMorni
+name: MorniNet
 version: test
-main: de.moinmorni.fake.FakeNetwork
+main: net.morni.fake.FakeNetwork
 api-version: '1.21'
-description: Test-Ersatz für das MoinMorni-Netzwerk-Plugin (nicht für echte Server).
+description: Test-Ersatz für das Netzwerk-Plugin von morni.net (nicht für echte Server).

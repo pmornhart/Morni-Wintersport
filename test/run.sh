@@ -7,7 +7,7 @@
 #   KEEP=1 SKIP_TEST=1 test/run.sh    # nur Server starten
 #   FRESH=1 test/run.sh               # Welt und Daten vorher löschen (baut alles neu)
 #
-# Erwartet (Vorgaben für die MoinMorni-Sandbox, alles per Umgebungsvariable änderbar):
+# Erwartet (Vorgaben für die Sandbox von morni.net, alles per Umgebungsvariable änderbar):
 #   WINTER_JAVA      Java 25 (Ordner; sonst die JDK 25 aus dem Cache, sonst JAVA_HOME)
 #   PAPER_JAR        Paper 26.1.2 (mineflayer kann bis 26.1)
 #   TEMPLATE         ein schon einmal gestarteter Paper-26.1.2-Ordner (libraries/, cache/, versions/ werden kopiert,
@@ -42,7 +42,7 @@ echo "== Server einrichten: $SERVER"
 if [ "${FRESH:-0}" = "1" ]; then
   rm -rf "$SERVER/wintersport" "$SERVER/plugins/MorniWintersport"
 fi
-mkdir -p "$SERVER/plugins/MorniWintersport" "$SERVER/plugins/MoinMorni"
+mkdir -p "$SERVER/plugins/MorniWintersport" "$SERVER/plugins/MorniNet"
 if [ -d "$TEMPLATE" ] && [ ! -d "$SERVER/libraries" ]; then
   cp -r "$TEMPLATE/libraries" "$TEMPLATE/cache" "$TEMPLATE/versions" "$SERVER/" 2>/dev/null || true
 fi
@@ -98,15 +98,17 @@ biathlon:
   tempo: 2
 CONF
 # Test-Netzwerk: Bert spricht Englisch, Anna und Carl sind eine Party (Anna führt).
-cat > "$SERVER/plugins/MoinMorni/fake.properties" <<'FAKE'
+cat > "$SERVER/plugins/MorniNet/fake.properties" <<'FAKE'
 lang.Bert=en
 party.Anna=Anna,Carl
 FAKE
-rm -f "$SERVER/plugins/MoinMorni/calls.log"
+rm -f "$SERVER/plugins/MorniNet/calls.log"
 rm -rf "$SERVER/plugins/MorniWintersport/spieler" "$SERVER/plugins/MorniWintersport/bestenliste.yml"
 rm -f "$SERVER"/plugins/Morni-Wintersport.jar
 cp "$REPO/target/Morni-Wintersport.jar" "$SERVER/plugins/"
-cp "$REPO/test/fake-network/target/MoinMorni-FakeNetwork.jar" "$SERVER/plugins/"
+# nur ein Test-Netzwerk im Server (auch keine ältere Fassung unter anderem Namen)
+rm -f "$SERVER"/plugins/*-FakeNetwork.jar
+cp "$REPO/test/fake-network/target/MorniNet-FakeNetwork.jar" "$SERVER/plugins/"
 for jar in ${EXTRA_PLUGINS:-}; do
   cp "$jar" "$SERVER/plugins/"
 done

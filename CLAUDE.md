@@ -18,10 +18,10 @@
 - Commits mit Stichpunkten `- Neu:` / `- Behoben:` / `- Verbessert:` / `- Entfernt:`.
 - Keine fremden Marken, Figuren, Namen, Texte oder Grafiken (keine Mojang-, Nintendo-, Hypixel- oder Inhalte anderer
   Server und Spiele): nur die Spielmechanik von Wintersport-Wettkämpfen als Vorbild, eigene Namen, eigene Bauten.
-- Die Netzwerk-Schnittstelle `src/api/java/de/moinmorni/api/MoinMorni.java` ist eine Kopie aus `pmornhart/moinmorni.net`
-  (`plugins/moinmorni-network/src/main/java/de/moinmorni/api/MoinMorni.java`) und muss **genau gleich** bleiben. Sie wird
+- Die Netzwerk-Schnittstelle `src/api/java/net/morni/api/MorniNet.java` ist eine Kopie aus `pmornhart/morni.net`
+  (`plugins/morninet-network/src/main/java/net/morni/api/MorniNet.java`) und muss **genau gleich** bleiben. Sie wird
   nur mitübersetzt und kommt **nicht** in die Jar. Nur `net/Connected` darf sie benutzen.
-- Wintersport muss auch ohne Netzwerk laufen (`softdepend: [MoinMorni]`).
+- Wintersport muss auch ohne Netzwerk laufen (`softdepend: [MorniNet]`).
 - Paper 26.x, Java 25. Der Code muss auch gegen Paper 26.1 übersetzen (`mvn -Ppaper-26.1 compile`, läuft in der CI).
 - Regeln ohne Server (Wertung, Medaillen, Punkte, Läufe, Zweierbob, Biathlon-Ablauf, Saison, Abstimmung, Zeiten)
   gehören in `logic/`, die Lage aller Strecken (Höhe, Tore, Kanäle, Loipe) in `course/` – beides ohne Bukkit, mit Tests.
