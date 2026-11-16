@@ -1,0 +1,44 @@
+name: MorniWintersport
+version: '${project.version}'
+main: de.moinmorni.wintersport.WintersportPlugin
+api-version: '1.21'
+description: Wintersport für das MoinMorni-Netzwerk – Riesenslalom, Biathlon und Bobbahn mit Medaillen, 2 bis 12 Leute.
+authors: [MoinMorni]
+website: https://moinmorni.net
+# Läuft mit dem Netzwerk-Plugin (Sprache, Party, Statistik) und auch allein.
+softdepend: [MoinMorni]
+
+commands:
+  wsadmin:
+    description: Verwaltung (info, status, start, stopp, neubauen, neuladen, testdatum; fahren/laufen nur zum Testen)
+    usage: /wsadmin <info|status|start [wettkampf|slalom|biathlon|bob]|stopp|neubauen|neuladen|testdatum <datum|aus>>
+    permission: moinmorni.wintersport.admin
+  abstimmen:
+    description: Abstimmen, was als Nächstes kommt (Wettkampf oder eine Disziplin)
+    usage: /abstimmen [wettkampf|slalom|biathlon|bob]
+    aliases: [vote, wahl]
+  bereit:
+    description: Im Dorf bereit melden
+    usage: /bereit
+    aliases: [ready]
+  zuschauen:
+    description: Dem laufenden Wettkampf zuschauen
+    usage: /zuschauen
+    aliases: [spectate, spec]
+  verlassen:
+    description: Wettkampf oder Zuschauen verlassen (zurück ins Dorf)
+    usage: /verlassen
+    aliases: [leave]
+  stats:
+    description: Medaillen und Bestzeiten ansehen
+    usage: /stats [spieler]
+    aliases: [statistik, medaillen]
+  top:
+    description: Bestzeiten je Disziplin
+    usage: /top [slalom|biathlon|bob]
+    aliases: [bestenliste, leaderboard]
+
+permissions:
+  moinmorni.wintersport.admin:
+    description: Wintersport verwalten und im Kreativmodus in der Winterwelt bauen
+    default: op
