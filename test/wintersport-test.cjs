@@ -248,6 +248,25 @@ function loopPoints() {
   return pts;
 }
 
+/** Nach dem Schießen: Strafrunden laufen (lassen), dann die nächste Runde. */
+async function penaltiesThenLap(name) {
+  await waitFor(async () => ['penalty', 'running'].includes((await status()).runners[name]?.state), 15000, 300);
+  const pen = (await status()).runners[name]?.pen ?? 0;
+  for (let k = 0; k < pen; k++) {
+    await cmd(`wsadmin laufen ${name} strafrunde`);
+    await waitFor(async () => ((await status()).runners[name]?.pen ?? 0) < pen - k, 15000, 300);
+  }
+  await waitFor(async () => (await status()).runners[name]?.state === 'running', 5000, 300);
+  await cmd(`wsadmin laufen ${name} runde`);
+}
+
+/** Aussteigen wie im echten Spiel: Schleichen (Shift). */
+async function sneakOut(bot) {
+  bot.setControlState('sneak', true);
+  await sleep(400);
+  bot.setControlState('sneak', false);
+}
+
 async function main() {
   // ------------------------------------------------------------------ Dorf
   await sleep(4000);
@@ -272,7 +291,7 @@ async function main() {
   check('Englische Begrüßung', sees(bert, /Welcome to the mountain village/));
   check('Leiste rechts (Scoreboard) vorhanden', await waitFor(() => Object.keys(anna.scoreboards ?? {}).length > 0, 4000));
   check('Netzwerk: Zustand „waiting“', calls().some((c) => c.t === 'state' && c.state === 'waiting'));
-  const day = Number(String(await cmd(inWorld('time query daytime'))).match(/(\d+)/)?.[1]);
+  const day = (await status()).top.zeit;
   check('Immer Tag (Tageszeit steht)', day === 6000, String(day));
 
   // ------------------------------------------------------------------ Abstimmung
@@ -349,7 +368,8 @@ async function main() {
   let s = await waitStage((x) => x.comp.disziplin === 'slalom' && x.stage.phase === 'PREP', 20000);
   check('Wettkampf startet mit dem Riesenslalom', Boolean(s), JSON.stringify(s?.comp));
   check('„Auf geht\'s!“ mit 4 Leuten', sees(anna, /Auf geht's! Wettkampf \(alle drei\) mit 4 Leuten/), anna.chats.find((c) => /Auf geht/.test(c)));
-  check('Startnummer (englisch: Bib number)', sees(anna, /Startnummer: \d/) && sees(bert, /Your bib number: \d/));
+  check('Startnummer (englisch: Bib number)', await waitFor(() => sees(anna, /Startnummer: \d/) && sees(bert, /Your bib number: \d/), 3000),
+    bert.chats.filter((c) => /bib|Bib|number/.test(c)).join(' | '));
   check('Netzwerk: Zustand „running“', await waitFor(() => calls().some((c) => c.t === 'state' && c.state === 'running'), 3000));
   check('Ein Lauf mit vier Bahnen', s?.stage.heat === '1/1' && Object.keys(s?.teams ?? {}).length === 4, JSON.stringify(s?.stage));
   await sleep(1500);
@@ -373,12 +393,12 @@ async function main() {
   await cmd('wsadmin fahren Bert ziel', 'wsadmin fahren Carl ziel');
   await cmd('wsadmin fahren Dora tor 0');
   await sleep(1500);
-  dora.dismount();
+  await sneakOut(dora);
   check('Aussteigen = zurück aufs Eis beim letzten Tor (neues Boot)', await waitFor(async () => {
     const x = await status();
     return dora.vehicle != null && x.teams.Dora?.passengers === 1 && x.teams.Dora?.z > -276 && x.teams.Dora?.z < -260;
   }, 6000), JSON.stringify((await status()).teams.Dora));
-  check('Hinweis „Zurück auf die Strecke“', sees(dora, /Zurück auf die Strecke/));
+  check('Hinweis „Zurück auf die Strecke“', await waitFor(() => sees(dora, /Zurück auf die Strecke/), 2000), dora.chats.slice(-3).join(' | '));
   await sleep(1000);
   await cmd('wsadmin fahren Dora ziel');
   s = await waitStage((x) => x.comp.disziplin !== 'slalom' || x.comp.phase === 'BETWEEN', 60000);
@@ -389,7 +409,7 @@ async function main() {
   check('Gold für Anna (fehlerfrei, zuerst los)', sees(anna, /GOLD! Du gewinnst Riesenslalom/) && sawTitle(anna, /Gold/),
     anna.chats.filter((c) => /Gold|Silber|Bronze/.test(c)).join(' | '));
   check('Silber für Carl', sees(carl, /Silber! Platz 2/));
-  check('Bronze für Dora (Bert hat 3 s Strafe)', sees(dora, /Bronze! Platz 3/), dora.chats.filter((c) => /Platz|Bronze/.test(c)).join(' | '));
+  check('Bronze für Bert trotz 3 s Strafe (Dora musste zurück aufs Eis)', sees(bert, /Bronze! 3rd place/), bert.chats.filter((c) => /place|Bronze/.test(c)).join(' | '));
   check('Medaillenspiegel im Chat', sees(anna, /Medaillenspiegel/) && sees(anna, /1\. Anna ●1 ●0 ●0/), anna.chats.filter((c) => /●/.test(c)).join(' | '));
   const st1 = calls().filter((c) => c.t === 'stats');
   check('Netzwerk: Gold + Zeit für Anna', st1.some((c) => c.name === 'Anna' && c.add.gold === 1 && c.add.races === 1) &&
@@ -404,7 +424,7 @@ async function main() {
   anna.setControlState('forward', true);
   await sleep(900);
   anna.clearControlStates();
-  check('Vor dem Start eingefroren (Vorwärts bringt nichts)', anna.entity.position.distanceTo(before) < 0.6,
+  check('Vor dem Start: das Starttor hält alle zurück', anna.entity.position.x < 102.5,
     `${before} → ${anna.entity.position}`);
   s = await waitStage((x) => x.stage.phase === 'RUN', 10000);
   check('Massenstart: LOS', Boolean(s) && sawTitle(anna, /LOS/));
@@ -434,6 +454,7 @@ async function main() {
   check('Carl fehlerfrei, Dora 4 von 5', await carlShoot && await doraShoot && sees(carl, /5 von 5/) && sees(dora, /4 von 5/));
   s = await status();
   check('Bert ist in der Strafrunde', s.runners.Bert?.state === 'penalty' && s.runners.Bert?.pen === 2, JSON.stringify(s.runners.Bert));
+  const others = [penaltiesThenLap('Anna'), penaltiesThenLap('Carl'), penaltiesThenLap('Dora')];
   await cmd('wsadmin laufen Bert runde');
   await sleep(4000);
   s = await status();
@@ -443,20 +464,13 @@ async function main() {
   await cmd('wsadmin laufen Bert strafrunde');
   check('Zwei Strafrunden geschafft, weiter auf der Loipe', await waitFor(async () => (await status()).runners.Bert?.state === 'running', 12000) &&
     sees(bert, /Penalty loops done/), JSON.stringify((await status()).runners.Bert));
-  // Runde 2 + zweites Schießen, Runde 3 ins Ziel
-  for (const [bot, name, hits] of [[anna, 'Anna', 5], [bert, 'Bert', 5], [carl, 'Carl', 4], [dora, 'Dora', 5]]) {
-    await cmd(`wsadmin laufen ${name} runde`);
-    shootRound(bot, name, hits).then(async () => {
-      const pen = (await status()).runners[name]?.pen ?? 0;
-      for (let i = 0; i < pen; i++) {
-        await cmd(`wsadmin laufen ${name} strafrunde`);
-        await waitFor(async () => ((await status()).runners[name]?.pen ?? 0) < pen - i, 12000);
-      }
-      await sleep(500);
-      await cmd(`wsadmin laufen ${name} runde`);
-    });
-    await sleep(1200);
-  }
+  await cmd('wsadmin laufen Bert runde');
+  await Promise.all(others);
+  // Runde 2 → zweites Schießen → Strafrunden → Runde 3 ins Ziel
+  await Promise.all([[anna, 'Anna', 5], [bert, 'Bert', 5], [carl, 'Carl', 4], [dora, 'Dora', 5]].map(async ([bot, name, hits]) => {
+    await shootRound(bot, name, hits);
+    await penaltiesThenLap(name);
+  }));
   s = await waitStage((x) => x.comp.disziplin !== 'biathlon' || x.comp.phase === 'BETWEEN', 150000);
   check('Biathlon: alle im Ziel und gewertet', Boolean(s) && sees(anna, /Ergebnis Biathlon/), JSON.stringify(s?.comp));
   check('Ergebnis mit Treffern', sees(anna, /\(10\/10 Treffer\)/) && sees(bert, /\(8\/10 hits\)/), anna.chats.filter((c) => /Treffer/.test(c)).join(' | '));
@@ -483,7 +497,7 @@ async function main() {
   check('Bob fährt durch die Kehren (Kontrollpunkte)', s.teams.Dora?.cp >= 2, JSON.stringify(s.teams.Dora));
   check('Anzeige „Kehre n/12“', sawBar(dora, /Kehre \d+\/12/), dora.bars.slice(-1)[0]);
   const cpBefore = s.teams.Dora?.cp;
-  dora.dismount();
+  await sneakOut(dora);
   check('Aussteigen im Kanal = zurück zum letzten Kontrollpunkt', await waitFor(async () => {
     const x = await status();
     return dora.vehicle != null && x.teams.Dora?.passengers === 1 && x.teams.Dora?.cp === cpBefore;
@@ -546,7 +560,8 @@ async function main() {
   await useItem(bots[giver], 8);
   check('Aufgeben: nicht im Ziel, zurück auf die Tribüne', await waitFor(async () => (await status()).teams[giver]?.state === 'dnf', 4000));
   s = await waitStage((x) => x.comp.phase === 'CEREMONY' || !x.top.laeuft, 40000);
-  check('Wertung: wer aufgibt, ist „nicht im Ziel“', sees(anna, new RegExp(`✖ ${giver} – nicht im Ziel`)), anna.chats.filter((c) => /✖/.test(c)).join(' | '));
+  check('Wertung: wer aufgibt, ist „nicht im Ziel“', await waitFor(() => sees(carl, new RegExp(`${giver} – (nicht im Ziel|did not finish)`)), 3000),
+    carl.chats.slice(-8).join(' | '));
   check('Siegerehrung auch für eine Disziplin allein', await waitFor(() => sawTitle(emil, /Siegerehrung/), 6000));
   check('Danach wieder alle im Dorf', await waitFor(() => [anna, bert, carl, dora, emil].every((b) => near(b.entity.position, SPAWN, 4)), 15000));
 

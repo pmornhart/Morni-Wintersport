@@ -172,7 +172,7 @@ final class Commands implements TabExecutor {
                 List<String> lines = new ArrayList<>();
                 lines.add("bereit=" + plugin.ready() + " offen=" + plugin.open() + " dorf=" + plugin.village().waiting().size()
                         + " countdown=" + plugin.village().countdown() + " naechstes=" + plugin.village().next().id()
-                        + " laeuft=" + (c != null));
+                        + " laeuft=" + (c != null) + " zeit=" + plugin.world().getTime());
                 if (c != null) {
                     lines.addAll(c.debug());
                 }
