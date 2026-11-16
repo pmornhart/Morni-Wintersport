@@ -173,6 +173,16 @@ public final class Texts {
         t("comp.between", "<gray>Gleich geht es weiter mit <bl><discipline></bl> …</gray>", "<gray>Coming up next: <bl><discipline></bl> …</gray>");
         t("comp.winner", "<au>★ Gesamtsieg für <white><name></white> mit <points> Punkten!</au>", "<au>★ Overall winner: <white><name></white> with <points> points!</au>");
         t("comp.left", "<gray><white><name></white> hat den Wettkampf verlassen.</gray>", "<gray><white><name></white> left the competition.</gray>");
+        // Zurück ins Spiel (Verbindung verloren, Platz bleibt eine Weile frei)
+        t("comp.away", "<gray><white><name></white> hat die Verbindung verloren – der Platz bleibt <white><secs> Sekunden</white> frei.</gray>",
+                "<gray><white><name></white> lost the connection – the spot stays free for <white><secs> seconds</white>.</gray>");
+        t("comp.away.late", "<gray><white><name></white> ist nicht rechtzeitig zurückgekommen und hat den Wettkampf verlassen.</gray>",
+                "<gray><white><name></white> didn't make it back in time and left the competition.</gray>");
+        t("comp.welcome-back", "<gray>Willkommen zurück! Du bist wieder im Wettkampf – gleiche Disziplin, gleicher Lauf, deine Zeiten zählen weiter.</gray>",
+                "<gray>Welcome back! You're back in the competition – same event, same run, your times still count.</gray>");
+        t("comp.welcome-back.title", "<em>Willkommen zurück!</em>", "<em>Welcome back!</em>");
+        t("comp.welcome-back.sub", "<gray>Weiter geht's – genau da, wo du warst.</gray>", "<gray>Carry on – right where you left off.</gray>");
+        t("comp.back.all", "<gray><white><name></white> ist zurück im Wettkampf.</gray>", "<gray><white><name></white> is back in the competition.</gray>");
         t("comp.over.title", "<au>Siegerehrung</au>", "<au>Award ceremony</au>");
         t("comp.over.sub", "<gray>Glückwunsch an alle!</gray>", "<gray>Congratulations to everyone!</gray>");
         t("comp.podium.1", "<au>1</au>", "<au>1</au>");

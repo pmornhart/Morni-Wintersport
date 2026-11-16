@@ -7,6 +7,7 @@ import de.moinmorni.wintersport.WintersportPlugin;
 import de.moinmorni.wintersport.course.Places;
 import de.moinmorni.wintersport.course.Terrain;
 import de.moinmorni.wintersport.data.PlayerData;
+import de.moinmorni.wintersport.logic.Comeback;
 import de.moinmorni.wintersport.logic.Discipline;
 import de.moinmorni.wintersport.logic.Medal;
 import de.moinmorni.wintersport.logic.MedalTable;
@@ -56,6 +57,11 @@ public final class Competition {
     private final Set<UUID> spectators = new HashSet<>();
     private final Map<Discipline, List<Ranking.Placed>> placed = new LinkedHashMap<>();
     private final Map<String, Result> lastResults = new HashMap<>();
+    /** Wer gerade die Verbindung verloren hat und zurückkommen darf (Frist in Spielticks). */
+    private final Comeback comeback = new Comeback();
+    /** Wem das Netzwerk gerade „spielt“ glaubt (nur Änderungen werden gemeldet). */
+    private final Set<UUID> told = new HashSet<>();
+    private long nowTick;
     private int index = -1;
     private Stage stage;
     private Phase phase = Phase.STAGE;
@@ -130,6 +136,11 @@ public final class Competition {
         return spectators.contains(uuid);
     }
 
+    /** Wartet der Wettkampf gerade auf diese Person (Verbindung verloren, Platz noch frei)? */
+    public boolean waitingFor(UUID uuid) {
+        return comeback.waitingFor(uuid);
+    }
+
     public List<Racer> active() {
         return racers.stream().filter(r -> r.player() != null).toList();
     }
@@ -142,6 +153,7 @@ public final class Competition {
             }
             plugin.store().pin(r.uuid());
             plugin.data(p);
+            tellPlaying(p, true);
             p.sendMessage(Texts.msg(plugin.lang(p), "comp.bib", Placeholder.unparsed("n", String.valueOf(r.number()))));
         }
         nextStage();
@@ -216,6 +228,7 @@ public final class Competition {
     }
 
     void tick(long tick) {
+        nowTick = tick;
         if (phase == Phase.STAGE && stage != null) {
             stage.tick(tick);
             if (stage.done()) {
@@ -225,6 +238,11 @@ public final class Competition {
     }
 
     void second() {
+        if (!over && comeback.count() > 0) {
+            for (UUID u : comeback.expired(nowTick)) {
+                tooLate(u);
+            }
+        }
         switch (phase) {
             case STAGE -> {
                 if (stage != null) {
@@ -251,7 +269,7 @@ public final class Competition {
         if (!over) {
             sidebars();
         }
-        if (!over && active().isEmpty()) {
+        if (!over && active().isEmpty() && comeback.count() == 0) {
             abort();
         }
     }
@@ -403,6 +421,7 @@ public final class Competition {
 
     private void ceremony() {
         phase = Phase.CEREMONY;
+        releaseAll();
         timer = plugin.settings().ceremonySeconds();
         stage = null;
         List<List<Racer>> podium = new ArrayList<>();
@@ -539,6 +558,7 @@ public final class Competition {
             return;
         }
         over = true;
+        releaseAll();
         if (stage != null) {
             stage.cleanup();
         }
@@ -579,6 +599,7 @@ public final class Competition {
         }
         Racer r = racer(p.getUniqueId());
         if (r != null) {
+            tellPlaying(p, false);
             quit(r);
             plugin.store().unpin(r.uuid(), true);
             plugin.village().enter(p);
@@ -599,12 +620,109 @@ public final class Competition {
         }
     }
 
+    /**
+     * Verbindung weg. Wer im Wettkampf ist, behält seinen Platz {@code rueckkehr-sekunden} lang – Disziplin, Lauf,
+     * Zeiten – und macht nach dem Wiederkommen genau dort weiter ({@link #rejoin}); so lange bietet die Lobby „Zurück ins
+     * Spiel“ an. Sein Lauf wartet, die Uhr läuft weiter. Ohne Rückkehr-Zeit oder bei der Siegerehrung wie bisher.
+     */
     public void quit(Player p) {
-        spectators.remove(p.getUniqueId());
-        Racer r = racer(p.getUniqueId());
-        if (r != null) {
-            quit(r);
-            plugin.store().unpin(r.uuid(), false);
+        UUID u = p.getUniqueId();
+        spectators.remove(u);
+        // Das Netzwerk vergisst „spielt gerade“, sobald jemand den Server verlässt.
+        told.remove(u);
+        Racer r = racer(u);
+        if (r == null) {
+            return;
+        }
+        int seconds = plugin.settings().comebackSeconds();
+        if (Comeback.holds(seconds, !over && phase != Phase.CEREMONY, true, false)) {
+            comeback.away(u, nowTick, seconds);
+            plugin.net().holdSlot(u, seconds);
+            if (stage != null && phase == Phase.STAGE) {
+                stage.away(r);
+            }
+            for (Player o : everyone()) {
+                if (!o.equals(p)) {
+                    o.sendMessage(Texts.msg(plugin.lang(o), "comp.away", Placeholder.unparsed("name", r.name()),
+                            Placeholder.unparsed("secs", String.valueOf(seconds))));
+                }
+            }
+            return;
+        }
+        quit(r);
+        plugin.store().unpin(r.uuid(), false);
+    }
+
+    /**
+     * Wiederkommen: Wartet der Wettkampf noch auf diese Person, geht es dort weiter, wo sie war (true). Zu spät: sie hat
+     * den Wettkampf verlassen wie bisher (false – sie kommt ins Dorf).
+     */
+    public boolean rejoin(Player p) {
+        UUID u = p.getUniqueId();
+        Racer r = racer(u);
+        if (r == null || !comeback.waitingFor(u)) {
+            return false;
+        }
+        if (!comeback.back(u, nowTick) || over || phase == Phase.CEREMONY) {
+            tooLate(u);
+            return false;
+        }
+        plugin.net().holdSlot(u, 0);
+        tellPlaying(p, true);
+        String lang = plugin.lang(p);
+        if (phase == Phase.STAGE && stage != null) {
+            stage.rejoin(r, p);
+        } else {
+            dress(p, r, false);
+            p.teleport(stage != null ? stage.view() : crowdSpot(0));
+        }
+        Ui.title(p, Texts.text(lang, "comp.welcome-back.title"), Texts.text(lang, "comp.welcome-back.sub"), 2500);
+        Ui.sound(p, "minecraft:entity.player.levelup", 1.2f);
+        p.sendMessage(Texts.msg(lang, "comp.welcome-back"));
+        for (Player o : everyone()) {
+            if (!o.equals(p)) {
+                o.sendMessage(Texts.msg(plugin.lang(o), "comp.back.all", Placeholder.unparsed("name", r.name())));
+            }
+        }
+        sidebars();
+        return true;
+    }
+
+    /** Nicht rechtzeitig zurück: hat den Wettkampf verlassen wie bisher (sein Lauf ist zu Ende, die Zeiten bleiben). */
+    private void tooLate(UUID u) {
+        plugin.net().holdSlot(u, 0);
+        Racer r = racer(u);
+        if (r == null || r.left()) {
+            return;
+        }
+        if (stage != null && phase == Phase.STAGE) {
+            stage.quit(r);
+        }
+        r.leave();
+        plugin.store().unpin(u, Bukkit.getPlayer(u) != null);
+        for (Player o : everyone()) {
+            o.sendMessage(Texts.msg(plugin.lang(o), "comp.away.late", Placeholder.unparsed("name", r.name())));
+        }
+    }
+
+    /** Siegerehrung oder Abbruch: niemand muss mehr zurück („Zurück ins Spiel“ zurücknehmen), niemand spielt mehr. */
+    private void releaseAll() {
+        for (UUID u : comeback.clear()) {
+            plugin.net().holdSlot(u, 0);
+        }
+        for (UUID u : new ArrayList<>(told)) {
+            Player p = Bukkit.getPlayer(u);
+            if (p != null) {
+                tellPlaying(p, false);
+            }
+        }
+        told.clear();
+    }
+
+    /** Dem Netzwerk sagen, ob jemand gerade spielt (dann fragt „/lobby“ erst nach) – nur bei Änderungen. */
+    private void tellPlaying(Player p, boolean playing) {
+        if (playing ? told.add(p.getUniqueId()) : told.remove(p.getUniqueId())) {
+            plugin.net().playing(p, playing);
         }
     }
 

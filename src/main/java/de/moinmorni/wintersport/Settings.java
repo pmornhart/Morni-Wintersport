@@ -22,7 +22,11 @@ public record Settings(
         int biathlonShootings,
         int biathlonLimit,
         int shootSeconds,
-        int runSpeed) {
+        int runSpeed,
+        int comebackSeconds) {
+
+    /** Höchstens so lange wartet ein Wettkampf auf jemanden, der die Verbindung verloren hat. */
+    static final int MAX_COMEBACK_SECONDS = 600;
 
     static Settings load(FileConfiguration c) {
         return new Settings(
@@ -43,7 +47,8 @@ public record Settings(
                 clamp(c.getInt("biathlon.schiessen", 2), 0, 9),
                 clamp(c.getInt("biathlon.zeitlimit-sekunden", 360), 30, 1800),
                 clamp(c.getInt("biathlon.schiess-zeit-sekunden", 40), 10, 300),
-                clamp(c.getInt("biathlon.tempo", 2), 0, 4));
+                clamp(c.getInt("biathlon.tempo", 2), 0, 4),
+                clamp(c.getInt("rueckkehr-sekunden", 90), 0, MAX_COMEBACK_SECONDS));
     }
 
     private static int clamp(int v, int min, int max) {

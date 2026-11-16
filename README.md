@@ -64,11 +64,21 @@ und erklärt freundlich, wann es wieder losgeht.
 Einstellungen stehen nur in der `config.yml` (Saison, Tageszeit, Schneefall, Countdown, Zeitlimits, Strafe, Zweierbob,
 Biathlon-Runden und -Schießen, Tempo) – im Netzwerk später im Panel.
 
+**Zurück ins Spiel:** Verliert jemand mitten im Wettkampf die Verbindung (zum Beispiel, weil das Spiel abstürzt),
+bleibt sein Platz `rueckkehr-sekunden` lang frei (ganz oben in der `config.yml`, Vorgabe 90, 0 = aus). Sein Lauf wartet,
+die Uhr läuft weiter (das Zeitlimit gilt). Kommt er rechtzeitig wieder – direkt oder über „Zurück ins Spiel“ in der
+Lobby –, geht es dort weiter: gleiche Disziplin, gleicher Lauf, seine Zeiten zählen (im Boot sitzt er gleich wieder
+drin, im Biathlon steht er dort, wo er war, mit Runde, Treffern und Strafrunden). Zu spät: Er hat den Wettkampf
+verlassen wie bisher.
+
 ## Im Netzwerk
 
 Das Netzwerk-Plugin („MoinMorni“) stellt die Schnittstelle `de.moinmorni.api.MoinMorni` bereit; Wintersport nutzt sie,
 wenn sie da ist (`softdepend`): Sprache, Party (zusammen in den Wettkampf, im Zweierbob), Statistik, Zustand,
 zurück zur Lobby. Ohne Netzwerk: deutsche Texte, Statistik nur lokal, „zur Lobby“ trennt die Verbindung.
+Ab Schnittstelle 2 meldet Wintersport, wer gerade im Wettkampf ist (dann fragt „/lobby“ erst nach), das Bett im Dorf
+fragt über das Netzwerk, und ein freigehaltener Platz erscheint in der Lobby als „Zurück ins Spiel“; mit einem
+älteren Netzwerk-Plugin läuft alles wie bisher.
 
 Statistik (`stats("wintersport", …)`):
 

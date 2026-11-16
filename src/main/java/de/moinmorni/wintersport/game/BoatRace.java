@@ -104,7 +104,8 @@ public final class BoatRace implements Stage {
         this.slalom = discipline == Discipline.SLALOM;
         List<List<Racer>> groups = new ArrayList<>();
         for (List<Racer> party : comp.parties()) {
-            List<Racer> here = party.stream().filter(r -> r.player() != null).toList();
+            // Wer gerade die Verbindung verloren hat und zurückkommen darf, bekommt seinen Platz in den Läufen.
+            List<Racer> here = party.stream().filter(r -> r.player() != null || comp.waitingFor(r.uuid())).toList();
             if (!here.isEmpty()) {
                 groups.add(here);
             }
@@ -163,7 +164,7 @@ public final class BoatRace implements Stage {
             setGate(lane, false);
         }
         for (Team t : heats.get(h)) {
-            if (t.members.stream().allMatch(r -> r.player() == null)) {
+            if (gone(t)) {
                 t.dnf = true;
                 continue;
             }
@@ -353,9 +354,17 @@ public final class BoatRace implements Stage {
         long limit = (slalom ? plugin.settings().slalomLimit() : plugin.settings().bobLimit()) * (long) TICKS;
         for (Team t : now) {
             if (t.active()) {
-                if (t.members.stream().allMatch(r -> r.player() == null)) {
+                if (gone(t)) {
                     t.dnf = true;
                     removeBoat(t);
+                    continue;
+                }
+                if (t.members.stream().allMatch(r -> r.player() == null)) {
+                    // Verbindung verloren, Platz noch frei: das Boot wartet, die Uhr läuft weiter (Zeitlimit gilt).
+                    if (tick - goTick >= limit) {
+                        t.dnf = true;
+                        release(t);
+                    }
                     continue;
                 }
                 steer(t);
@@ -377,6 +386,11 @@ public final class BoatRace implements Stage {
             phase = HeatPhase.AFTER;
             phaseTicks = 0;
         }
+    }
+
+    /** Niemand mehr da und niemand, der zurückkommen darf? */
+    private boolean gone(Team t) {
+        return t.members.stream().allMatch(r -> r.player() == null && !comp.waitingFor(r.uuid()));
     }
 
     private void releaseDue(List<Team> now, boolean all) {
@@ -757,6 +771,46 @@ public final class BoatRace implements Stage {
                     removeBoat(t);
                 }
             }
+        }
+    }
+
+    /** Verbindung weg: aus dem Boot steigen lassen, ohne dass das als „zurück aufs Eis“ zählt; das Boot wartet. */
+    @Override
+    public void away(Racer r) {
+        for (Team t : teams) {
+            Player p = r.player();
+            if (t.members.contains(r) && p != null && p.getVehicle() != null) {
+                boolean was = t.resetting;
+                t.resetting = true;
+                p.leaveVehicle();
+                t.resetting = was;
+            }
+        }
+    }
+
+    /**
+     * Rechtzeitig zurück: Läuft sein Lauf gerade, sitzt er gleich wieder im Boot – zu zweit im laufenden Bob, allein in
+     * einem neuen Boot am letzten Tor bzw. Kontrollpunkt (die Uhr ist weitergelaufen). Wartet sein Lauf noch, sitzt er
+     * am Start; ist er vorbei oder kommt er erst, geht es auf die Tribüne.
+     */
+    @Override
+    public void rejoin(Racer r, Player p) {
+        Team t = teamOf(p);
+        if (t == null || !t.active() || t.heat != heat || phase == HeatPhase.AFTER) {
+            toStand(p, r);
+            return;
+        }
+        comp.dress(p, r, true);
+        boolean partnerAboard = t.boat != null && t.boat.isValid() && !t.boat.getPassengers().isEmpty();
+        if (phase != HeatPhase.RUN || partnerAboard) {
+            if (t.boat == null || !t.boat.isValid()) {
+                place(t, startOf(t.lane));
+            } else {
+                seat(t);
+            }
+        } else {
+            t.resetting = false;
+            reset(t);
         }
     }
 

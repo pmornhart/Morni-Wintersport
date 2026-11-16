@@ -24,6 +24,8 @@ const PASS = fs.readFileSync(PASS_FILE, 'utf8').trim();
 const VERSION = process.env.MC_VERSION ?? '26.1';
 const FLOOR = 100;
 const SPAWN = { x: 0.5, y: 101, z: 24.5 };
+/** rueckkehr-sekunden im Test (test/run.sh). */
+const COMEBACK = 20;
 
 const results = [];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -76,6 +78,8 @@ const calls = () =>
     .filter(Boolean)
     .map((l) => JSON.parse(l));
 const inWorld = (c) => `execute in minecraft:wintersport run ${c}`;
+/** Netzwerk-Aufrufe einer Art für einen Namen (ab Stelle {from} in calls.log). */
+const callsOf = (t, name, from = 0) => calls().slice(from).filter((c) => c.t === t && c.name === name);
 
 async function waitFor(cond, ms = 5000, step = 150) {
   const start = Date.now();
@@ -276,7 +280,7 @@ async function main() {
   check('Torstangen und Liftseile stehen (Anzeige-Objekte)', /: (\d+)/.test(gates) && Number(gates.match(/: (\d+)/)[1]) >= 250, gates.trim());
 
   const anna = await join('Anna');
-  const bert = await join('Bert');
+  let bert = await join('Bert');
   check('Ankunft im Bergdorf', near(anna.entity.position, SPAWN, 3) && anna.game.gameMode === 'adventure',
     JSON.stringify(anna.entity.position));
   const below = anna.blockAt(anna.entity.position.offset(0, -1, 0));
@@ -356,7 +360,7 @@ async function main() {
 
   // ------------------------------------------------------------------ Wettkampf 1: Start
   const carl = await join('Carl');
-  const dora = await join('Dora');
+  let dora = await join('Dora');
   clear(anna, bert, carl, dora);
   for (const b of [anna, bert, carl, dora]) {
     b.setQuickBarSlot(1);
@@ -371,6 +375,8 @@ async function main() {
   check('Startnummer (englisch: Bib number)', await waitFor(() => sees(anna, /Startnummer: \d/) && sees(bert, /Your bib number: \d/), 3000),
     bert.chats.filter((c) => /bib|Bib|number/.test(c)).join(' | '));
   check('Netzwerk: Zustand „running“', await waitFor(() => calls().some((c) => c.t === 'state' && c.state === 'running'), 3000));
+  check('Netzwerk: alle vier „spielen gerade“ (Nachfrage vor der Lobby)', ['Anna', 'Bert', 'Carl', 'Dora'].every((n) =>
+    callsOf('playing', n).some((c) => c.playing === true)), calls().filter((c) => c.t === 'playing').map((c) => `${c.name}:${c.playing}`).join(' '));
   check('Ein Lauf mit vier Bahnen', s?.stage.heat === '1/1' && Object.keys(s?.teams ?? {}).length === 4, JSON.stringify(s?.stage));
   await sleep(1500);
   s = await status();
@@ -399,10 +405,27 @@ async function main() {
     return dora.vehicle != null && x.teams.Dora?.passengers === 1 && x.teams.Dora?.z > -276 && x.teams.Dora?.z < -260;
   }, 6000), JSON.stringify((await status()).teams.Dora));
   check('Hinweis „Zurück auf die Strecke“', await waitFor(() => sees(dora, /Zurück auf die Strecke/), 2000), dora.chats.slice(-3).join(' | '));
+  // Zurück ins Spiel mitten im Slalom: Dora geht und kommt gleich wieder – sitzt wieder im Boot, ihr Lauf zählt weiter
+  await sleep(1000);
+  const doraRun = (await status()).teams.Dora;
+  let mark = calls().length;
+  dora.quit();
+  check('Slalom: Dora verliert die Verbindung, ihr Lauf wartet (holdSlot)', await waitFor(async () =>
+    callsOf('hold-slot', 'Dora', mark).some((c) => c.seconds === COMEBACK) && (await status()).teams.Dora?.state === 'run', 5000),
+  JSON.stringify((await status()).teams.Dora));
+  await sleep(2500);
+  dora = await join('Dora');
+  check('Slalom: Dora ist zurück und sitzt wieder im Boot – gleicher Lauf, gleiche Tore', await waitFor(async () => {
+    const x = (await status()).teams.Dora;
+    return dora.vehicle != null && x?.state === 'run' && x.passengers === 1 && x.gate >= doraRun.gate && x.misses === doraRun.misses;
+  }, 6000) && sees(dora, /Willkommen zurück! Du bist wieder im Wettkampf/), JSON.stringify((await status()).teams.Dora));
+  check('Slalom: Platz wieder frei (holdSlot 0)', callsOf('hold-slot', 'Dora', mark).some((c) => c.seconds === 0), JSON.stringify(calls().slice(mark)));
   await sleep(1000);
   await cmd('wsadmin fahren Dora ziel');
   s = await waitStage((x) => x.comp.disziplin !== 'slalom' || x.comp.phase === 'BETWEEN', 60000);
   check('Alle im Ziel, Riesenslalom gewertet', Boolean(s), JSON.stringify(s?.comp));
+  // Wertung und Medaillenspiegel kommen im selben Takt, auf einem ausgelasteten Rechner aber erst nach dem Status an.
+  await waitFor(() => [anna, carl, dora].every((b) => sees(b, /Medaillenspiegel/)) && sees(bert, /Medal table/), 8000);
   check('„Im Ziel!“ mit Zeit', sees(anna, /Im Ziel! Zeit: \d:\d\d,\d\d/) && sees(bert, /Finished! Time: \d:\d\d\.\d\d \(incl\. 3 s penalty\)/),
     `${anna.chats.find((c) => /Im Ziel/.test(c))} / ${bert.chats.find((c) => /Finished/.test(c))}`);
   check('Ergebnisliste im Chat (mit verpasstem Tor)', sees(anna, /Ergebnis Riesenslalom/) && sees(anna, /1 Tor\(e\) verpasst/));
@@ -456,6 +479,32 @@ async function main() {
   check('Carl fehlerfrei, Dora 4 von 5', await carlShoot && await doraShoot && sees(carl, /5 von 5/) && sees(dora, /4 von 5/));
   s = await status();
   check('Bert ist in der Strafrunde', s.runners.Bert?.state === 'penalty' && s.runners.Bert?.pen === 2, JSON.stringify(s.runners.Bert));
+
+  // ------------------------------------------------------------------ Zurück ins Spiel (rechtzeitig): Dora im Biathlon
+  mark = calls().length;
+  const doraBefore = { ...s.runners.Dora };
+  clear(anna, carl);
+  dora.quit();
+  check(`Dora verliert die Verbindung: Platz bleibt ${COMEBACK} s frei (Netzwerk: holdSlot ${COMEBACK})`,
+    await waitFor(() => callsOf('hold-slot', 'Dora', mark).some((c) => c.seconds === COMEBACK), 5000), JSON.stringify(calls().slice(mark)));
+  check('Die anderen erfahren es (de)', await waitFor(() => sees(anna, new RegExp(`Dora hat die Verbindung verloren – der Platz bleibt ${COMEBACK} Sekunden frei`)), 3000),
+    anna.chats.slice(-1)[0]);
+  await sleep(2500);
+  s = await status();
+  check('Dora bleibt im Biathlon: Runde, Treffer und Strafrunden bleiben stehen', s.runners.Dora?.state === doraBefore.state &&
+    s.runners.Dora.lap === doraBefore.lap && s.runners.Dora.hits === doraBefore.hits && s.runners.Dora.pen === doraBefore.pen,
+  `${JSON.stringify(doraBefore)} → ${JSON.stringify(s.runners.Dora)}`);
+  dora = await join('Dora');
+  check('Dora ist rechtzeitig zurück: „Willkommen zurück!“', await waitFor(() => sawTitle(dora, /Willkommen zurück/) &&
+    sees(dora, /Willkommen zurück! Du bist wieder im Wettkampf/), 4000), `${dora.titles.join(' | ')} / ${dora.chats.slice(-2).join(' | ')}`);
+  s = await status();
+  check('Gleiche Disziplin, gleicher Lauf, gleicher Stand – an derselben Stelle', s.comp.disziplin === 'biathlon' &&
+    s.runners.Dora?.state === doraBefore.state && s.runners.Dora.lap === doraBefore.lap && s.runners.Dora.hits === doraBefore.hits &&
+    s.runners.Dora.pen === doraBefore.pen && Math.hypot(s.runners.Dora.x - doraBefore.x, s.runners.Dora.z - doraBefore.z) < 1.5,
+  `${JSON.stringify(doraBefore)} → ${JSON.stringify(s.runners.Dora)}`);
+  check('Netzwerk: Platz wieder frei (holdSlot 0) und Dora „spielt gerade“', callsOf('hold-slot', 'Dora', mark).some((c) => c.seconds === 0) &&
+    callsOf('playing', 'Dora', mark).some((c) => c.playing === true), JSON.stringify(calls().slice(mark)));
+  check('Die anderen sehen „Dora ist zurück im Wettkampf“', await waitFor(() => sees(carl, /Dora ist zurück im Wettkampf/), 3000));
   const others = [penaltiesThenLap('Anna'), penaltiesThenLap('Carl'), penaltiesThenLap('Dora')];
   await cmd('wsadmin laufen Bert runde');
   await sleep(4000);
@@ -514,6 +563,9 @@ async function main() {
 
   // ------------------------------------------------------------------ Siegerehrung
   check('Siegerehrung: Titel', await waitFor(() => sawTitle(anna, /Siegerehrung/) && sawTitle(bert, /Award ceremony/), 6000));
+  check('Netzwerk: bei der Siegerehrung spielt niemand mehr', await waitFor(() => ['Anna', 'Bert', 'Carl', 'Dora'].every((n) =>
+    callsOf('playing', n).at(-1)?.playing === false), 3000),
+  ['Anna', 'Bert', 'Carl', 'Dora'].map((n) => `${n}:${callsOf('playing', n).at(-1)?.playing}`).join(' '));
   check('Gesamtsieg für Anna', sees(anna, /Gesamtsieg für Anna/), anna.chats.find((c) => /Gesamtsieg/.test(c)));
   const onPodium = await waitFor(() => anna.entity.position.y > FLOOR + 3.5 && Math.abs(anna.entity.position.z + 8.5) < 1, 4000);
   check('Anna steht ganz oben auf dem Treppchen', onPodium, JSON.stringify(anna.entity.position));
@@ -597,14 +649,35 @@ async function main() {
     await useItem(emil, 8);
     check('Zuschauen beenden: zurück ins Dorf', await waitFor(() => near(emil.entity.position, SPAWN, 3), 3000));
   }
+
+  // Zu spät: Bert verliert im Bob-Wettkampf die Verbindung und kommt nicht rechtzeitig zurück – dann wie bisher.
+  mark = calls().length;
+  clear(anna, carl, dora);
+  bert.quit();
+  check(`Zu spät: Berts Platz bleibt erst ${COMEBACK} s frei (holdSlot ${COMEBACK})`, await waitFor(() =>
+    callsOf('hold-slot', 'Bert', mark).some((c) => c.seconds === COMEBACK), 5000), JSON.stringify(calls().slice(mark)));
+  await sleep(3000);
+  s = await status();
+  check('Der Wettkampf wartet auf Bert (noch dabei)', s.top.laeuft && s.racers.Bert?.left === false, JSON.stringify(s.racers.Bert));
+  check(`Nach ${COMEBACK} s: Bert ist nicht rechtzeitig zurück und hat den Wettkampf verlassen`, await waitFor(() =>
+    sees(anna, /Bert ist nicht rechtzeitig zurückgekommen und hat den Wettkampf verlassen/), (COMEBACK + 15) * 1000, 500),
+  anna.chats.slice(-2).join(' | '));
+  check('Netzwerk: Angebot zurückgenommen (holdSlot 0)', callsOf('hold-slot', 'Bert', mark).some((c) => c.seconds === 0));
+  bert = await join('Bert');
+  check('Bert kommt zu spät: wie bisher ins Dorf', await waitFor(() => near(bert.entity.position, SPAWN, 3), 5000),
+    JSON.stringify(bert.entity.position));
   await cmd('wsadmin stopp');
-  check('Abbruch per Verwaltung: alle zurück ins Dorf', await waitFor(() => [anna, bert, carl, dora].every((b) => near(b.entity.position, SPAWN, 4)), 6000));
+  check('Abbruch per Verwaltung: alle zurück ins Dorf', await waitFor(() => [anna, bert, carl, dora, emil].every((b) => near(b.entity.position, SPAWN, 4)), 6000));
 
   // ------------------------------------------------------------------ Lobby-Knopf
+  // Emil fuhr eben evtl. noch Bob: erst die Schnellleiste des Dorfs abwarten (Bett auf Platz 9).
+  await waitFor(() => /bed/.test(emil.inventory.slots[44]?.name ?? ''), 4000);
+  await sleep(300);
   emil.setQuickBarSlot(8);
   await sleep(250);
   emil.activateItem();
-  check('Bett schickt in die Lobby (Netzwerk)', await waitFor(() => calls().some((c) => c.t === 'to-lobby' && c.name === 'Emil'), 3000));
+  check('Bett: zur Lobby – fragt das Netzwerk (im Dorf ohne Nachfrage)', await waitFor(() =>
+    calls().some((c) => c.t === 'ask-lobby' && c.name === 'Emil' && c.asked === false), 3000), JSON.stringify(calls().slice(-2)));
 
   for (const b of Object.values(bots)) b.quit();
   await sleep(500);

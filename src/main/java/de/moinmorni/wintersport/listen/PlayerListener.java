@@ -35,6 +35,11 @@ public final class PlayerListener implements Listener {
         Player p = e.getPlayer();
         e.joinMessage(null);
         plugin.data(p);
+        // Zurück ins Spiel: Wartet der Wettkampf noch auf diese Person, geht es dort weiter, wo sie war.
+        Competition held = plugin.games().waitingFor(p.getUniqueId());
+        if (held != null && held.rejoin(p)) {
+            return;
+        }
         plugin.village().enter(p);
         String lang = plugin.lang(p);
         if (!plugin.ready()) {
@@ -86,8 +91,9 @@ public final class PlayerListener implements Listener {
                 case "ready" -> plugin.village().toggleReady(p);
                 case "stats" -> VillageMenus.stats(plugin, p);
                 case "lobby" -> {
+                    // Das Netzwerk fragt nach, falls jemand gerade spielt (im Dorf geht es sofort).
                     p.sendMessage(Texts.msg(plugin.lang(p), "lobby.going"));
-                    plugin.net().toLobby(p, Texts.text(plugin.lang(p), "lobby.kick"));
+                    plugin.net().askToLobby(p, Texts.text(plugin.lang(p), "lobby.kick"));
                 }
                 default -> {
                 }

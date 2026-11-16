@@ -68,6 +68,8 @@ public final class BiathlonRace implements Stage {
         long lastShot = -1;
         int arrowsOut;
         boolean onMat;
+        /** Schon an der Startbahn gewesen (wer beim Start gerade weg war, kommt beim Wiederkommen dorthin)? */
+        boolean placed;
         final java.util.Deque<double[]> pilot = new java.util.ArrayDeque<>();
 
         Runner(Racer racer, int lane) {
@@ -101,7 +103,8 @@ public final class BiathlonRace implements Stage {
         this.plugin = comp.plugin();
         int lane = 0;
         for (Racer r : comp.racers()) {
-            if (r.player() != null && lane < Biathlon.LANES) {
+            // Wer gerade die Verbindung verloren hat und zurückkommen darf, bekommt seine Bahn.
+            if ((r.player() != null || comp.waitingFor(r.uuid())) && !r.left() && lane < Biathlon.LANES) {
                 runners.add(new Runner(r, lane++));
             }
         }
@@ -129,6 +132,7 @@ public final class BiathlonRace implements Stage {
             p.teleport(at);
             run.px = at.getX();
             run.pz = at.getZ();
+            run.placed = true;
             freeze(p, true);
             p.sendMessage(Texts.msg(plugin.lang(p), "biathlon.intro", Placeholder.unparsed("laps",
                     String.valueOf(plugin.settings().biathlonLaps()))));
@@ -231,7 +235,10 @@ public final class BiathlonRace implements Stage {
             }
             Player p = run.racer.player();
             if (p == null) {
-                run.dnf = true;
+                // Verbindung verloren, Platz noch frei: Stand und Uhr bleiben, das Zeitlimit gilt weiter.
+                if (!comp.waitingFor(run.racer.uuid()) || tick - goTick >= limit) {
+                    run.dnf = true;
+                }
                 continue;
             }
             if (run.progress.phase() == BiathlonProgress.Phase.SHOOTING) {
@@ -532,6 +539,58 @@ public final class BiathlonRace implements Stage {
                 }
             }
         }
+    }
+
+    /** Verbindung weg: der Stand (Runde, Treffer, Strafrunden) bleibt, Pfeile in der Luft zählen nicht mehr. */
+    @Override
+    public void away(Racer r) {
+        Runner run = runnerOf(r);
+        if (run != null) {
+            run.pilot.clear();
+            arrows.values().removeIf(s -> s.runner == run);
+            run.arrowsOut = 0;
+        }
+    }
+
+    /**
+     * Rechtzeitig zurück: vor dem Start an die eigene Startbahn, im Rennen genau dort weiter, wo man war (Minecraft hat
+     * den Ort gespeichert; am Schießstand zurück auf die Matte) – Runde, Treffer und Strafrunden zählen weiter.
+     */
+    @Override
+    public void rejoin(Racer r, Player p) {
+        Runner run = runnerOf(r);
+        if (run == null || !run.active() || phase == Phase.OVER) {
+            if (run != null) {
+                toStand(run, p);
+            } else {
+                comp.dress(p, r, false);
+                p.teleport(view());
+            }
+            return;
+        }
+        if (phase != Phase.RUN || !run.placed) {
+            comp.dress(p, r, false);
+            double[] g = Biathlon.grid(run.lane);
+            p.teleport(new Location(plugin.world(), g[0], Terrain.FLOOR_Y + 1, g[1], -90f, 0f));
+            run.px = g[0];
+            run.pz = g[1];
+            run.placed = true;
+            if (phase != Phase.RUN) {
+                freeze(p, true);
+                return;
+            }
+        }
+        freeze(p, false);
+        int amp = plugin.settings().runSpeed() - 1;
+        if (amp >= 0) {
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, PotionEffect.INFINITE_DURATION, amp, false, false, true));
+        }
+        if (run.progress.phase() == BiathlonProgress.Phase.SHOOTING) {
+            p.teleport(mat(run));
+        }
+        Location l = p.getLocation();
+        run.px = l.getX();
+        run.pz = l.getZ();
     }
 
     @Override
