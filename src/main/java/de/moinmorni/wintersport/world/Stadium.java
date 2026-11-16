@@ -130,7 +130,7 @@ final class Stadium {
             }
             if ((x - first) % 6 == 0) {
                 for (int y = 1; y <= 4; y++) {
-                    p.set(x, y, mz + 3, "spruce_log[axis=y]");
+                    p.set(x, y, mz + 3, "spruce_fence");
                 }
                 Decor.hangingLantern(p, x + 3, 4, mz + 1, 0);
             }

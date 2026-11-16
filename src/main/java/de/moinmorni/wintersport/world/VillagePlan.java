@@ -32,6 +32,9 @@ final class VillagePlan {
         Decor.chalet(p, -44, -2, -36, 6, 0, true, r);
         mulledWine(p);
         rink(p, r);
+        trees(p, r);
+        snowman(p, 9, 27, "south");
+        snowman(p, -20, 8, "east");
         return p;
     }
 
@@ -231,6 +234,25 @@ final class VillagePlan {
                 p.set(x, 9, bz, "snow[layers=2]");
             }
         }
+    }
+
+    /** Verschneite Fichten am Dorfrand und zwischen den Hütten. */
+    private static void trees(Plan p, Random r) {
+        int[][] spots = {{-22, -6}, {20, -6}, {-48, 14}, {44, 18}, {-24, 44}, {22, 48}, {-6, -24}, {12, -26},
+            {-50, 30}, {46, -2}, {40, 46}, {-18, 54}, {4, 54}, {-46, -18}, {44, -22}};
+        for (int[] s : spots) {
+            Decor.spruce(p, s[0], 1, s[1], 7 + r.nextInt(5), r);
+        }
+    }
+
+    /** Schneemann mit Kürbiskopf, Knöpfen und Besen-Armen. */
+    private static void snowman(Plan p, int x, int z, String facing) {
+        p.set(x, 1, z, "snow_block");
+        p.set(x, 2, z, "snow_block");
+        p.set(x, 3, z, "carved_pumpkin[facing=" + facing + "]");
+        p.set(x, 4, z, "black_carpet");
+        p.set(x - 1, 2, z, "spruce_fence");
+        p.set(x + 1, 2, z, "spruce_fence");
     }
 
     /** Glühweinstand: Bude mit rot-weißem Dach, Theke, Kessel, Fässer, Laternen. */

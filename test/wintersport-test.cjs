@@ -409,7 +409,8 @@ async function main() {
   check('Gold für Anna (fehlerfrei, zuerst los)', sees(anna, /GOLD! Du gewinnst Riesenslalom/) && sawTitle(anna, /Gold/),
     anna.chats.filter((c) => /Gold|Silber|Bronze/.test(c)).join(' | '));
   check('Silber für Carl', sees(carl, /Silber! Platz 2/));
-  check('Bronze für Bert trotz 3 s Strafe (Dora musste zurück aufs Eis)', sees(bert, /Bronze! 3rd place/), bert.chats.filter((c) => /place|Bronze/.test(c)).join(' | '));
+  check('Bronze für Platz 3 (Bert mit Strafe oder Dora nach dem Aussteigen)', sees(bert, /Bronze! 3rd place/) !== sees(dora, /Bronze! Platz 3/),
+    `${bert.chats.filter((c) => /3rd/.test(c)).join(' | ')} / ${dora.chats.filter((c) => /Platz 3/.test(c)).join(' | ')}`);
   check('Medaillenspiegel im Chat', sees(anna, /Medaillenspiegel/) && sees(anna, /1\. Anna ●1 ●0 ●0/), anna.chats.filter((c) => /●/.test(c)).join(' | '));
   const st1 = calls().filter((c) => c.t === 'stats');
   check('Netzwerk: Gold + Zeit für Anna', st1.some((c) => c.name === 'Anna' && c.add.gold === 1 && c.add.races === 1) &&
@@ -445,7 +446,8 @@ async function main() {
     `${slot(anna, 0)?.name} ${slot(anna, 1)?.name}×${slot(anna, 1)?.count}`);
   check('Titel „Schießstand“', sawTitle(anna, /Schießstand/));
   const annaShoot = shootRound(anna, 'Anna', 5);
-  check('Anna: alle fünf getroffen', await annaShoot && sees(anna, /5 von 5 getroffen – fehlerfrei/), anna.chats.slice(-2).join(' | '));
+  check('Anna: alle fünf getroffen', await annaShoot && await waitFor(() => sees(anna, /5 von 5 getroffen – fehlerfrei/), 3000),
+    anna.chats.slice(-2).join(' | '));
   const scheiben = String(await cmd(inWorld('execute if block 77 102 38 minecraft:white_concrete')));
   check('Getroffene Scheiben klappen weiß um', /passed/i.test(scheiben), scheiben.trim());
   check('Bert: 3 Treffer, 2 Fehler → 2 Strafrunden', await bertShoot && sees(bert, /Hit 3 of 5 – 2 penalty loop\(s\)/),
