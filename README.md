@@ -1,6 +1,6 @@
 # Morni Wintersport
 
-Der Wintersport-Modus des Minecraft-Netzwerks **morni.net**: **Winterspiele im verschneiten Bergdorf
+Der Wintersport-Modus des Minecraft-Netzwerks **MoinMorni** (moinmorni.net): **Winterspiele im verschneiten Bergdorf
 am Morni-Kogel – Riesenslalom, Biathlon und Bobbahn, um Gold, Silber und Bronze.** 2 bis 12 Leute treten im
 **Wettkampf** aus allen drei Disziplinen an; jede Disziplin geht auch einzeln. Ein Paper-Plugin für Paper 26.x
 (Java 25). Es läuft im Netzwerk und auch ganz allein.
@@ -59,14 +59,14 @@ und erklärt freundlich, wann es wieder losgeht.
 | `/zuschauen` | dem laufenden Wettkampf von der Tribüne zuschauen – auch `/spectate` |
 | `/verlassen` | Wettkampf, Zuschauen, Lift oder Schlitten verlassen – auch `/leave` |
 | `/stats [spieler]` · `/top [disziplin]` | Medaillen und Bestzeiten |
-| `/wsadmin info\|status\|start [programm]\|stopp\|neubauen\|neuladen\|testdatum <datum\|aus>` | Verwaltung (`morninet.wintersport.admin`); `fahren`/`laufen` nur für Tests |
+| `/wsadmin info\|status\|start [programm]\|stopp\|neubauen\|neuladen\|testdatum <datum\|aus>` | Verwaltung (`moinmorni.wintersport.admin`); `fahren`/`laufen` nur für Tests |
 
 Einstellungen stehen nur in der `config.yml` (Saison, Tageszeit, Schneefall, Countdown, Zeitlimits, Strafe, Zweierbob,
 Biathlon-Runden und -Schießen, Tempo) – im Netzwerk später im Panel.
 
 ## Im Netzwerk
 
-Das Netzwerk-Plugin („MorniNet“) stellt die Schnittstelle `net.morni.api.MorniNet` bereit; Wintersport nutzt sie,
+Das Netzwerk-Plugin („MoinMorni“) stellt die Schnittstelle `de.moinmorni.api.MoinMorni` bereit; Wintersport nutzt sie,
 wenn sie da ist (`softdepend`): Sprache, Party (zusammen in den Wettkampf, im Zweierbob), Statistik, Zustand,
 zurück zur Lobby. Ohne Netzwerk: deutsche Texte, Statistik nur lokal, „zur Lobby“ trennt die Verbindung.
 

@@ -34,8 +34,8 @@ jobs:
         run: mvn -B -q -Ppaper-26.1 -DskipTests compile
       - name: Netzwerk-Schnittstelle ist nicht in der Jar
         run: |
-          if unzip -l target/Morni-Wintersport.jar | grep -q 'net/morni/api/'; then
-            echo "net.morni.api gehört nicht in die Jar – sie kommt vom Netzwerk-Plugin."
+          if unzip -l target/Morni-Wintersport.jar | grep -q 'de/moinmorni/api/'; then
+            echo "de.moinmorni.api gehört nicht in die Jar – sie kommt vom Netzwerk-Plugin."
             exit 1
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

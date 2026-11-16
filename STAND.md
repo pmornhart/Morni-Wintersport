@@ -1,12 +1,12 @@
 # Stand – Morni Wintersport
 
-**Was es ist:** Der Wintersport-Modus des Netzwerks morni.net (Paper-Plugin `MorniWintersport`, Java 25, Paper 26.x):
+**Was es ist:** Der Wintersport-Modus des MoinMorni-Netzwerks (Paper-Plugin `MorniWintersport`, Java 25, Paper 26.x):
 2–12 Leute treten in Riesenslalom, Biathlon und Bobbahn an – um Medaillen und den Gesamtsieg. Jede Disziplin geht
 auch einzeln. Netzwerk-Kennung `wintersport`, englisch „Winter Games“.
 
 ## Aufbau
 
-- `src/main/java/net/morni/wintersport/`: `WintersportPlugin` (Start, Welt, Takt, Saison, Zustand), `Settings`,
+- `src/main/java/de/moinmorni/wintersport/`: `WintersportPlugin` (Start, Welt, Takt, Saison, Zustand), `Settings`,
   `Texts` (de/en), `Ui`, `Items`, `Holo` (Schrift je Sprache), `Sidebar` (kopiert die Rang-Teams des Netzwerks),
   `Boards` (Schilder, ewiger Medaillenspiegel, Bestzeiten, Anzeigetafeln an den Zielen, Leiste im Dorf), `Snow`,
   `Commands` (`/abstimmen`, `/bereit`, `/zuschauen`, `/verlassen`, `/stats`, `/top`, `/wsadmin`).
@@ -38,12 +38,6 @@ auch einzeln. Netzwerk-Kennung `wintersport`, englisch „Winter Games“.
   Slalompisten mit Toren, Starttor, Slalom-Fahrt aus dem Boot, Bobkanäle, Stadion, Schießstand, Sessellift.
 - Nicht echt geprüft: echtes Bootfahren mit einem richtigen Client (Steuerung, Sprünge über die Absätze, Tempo),
   Mitfahren im Sessellift mit echtem Client, Bedrock, Netzwerk mit echtem Hub, Paper 26.3 als Server.
-- **Umbenannt in morni.net** (16.11., Philip): Paket `net.morni.wintersport`, Schnittstelle `net.morni.api.MorniNet`
-  (byte-gleich aus dem Netzwerk-Repo), `softdepend: [MorniNet]`, Recht `morninet.wintersport.admin`, Lobby-Hinweis,
-  Schild im Dorf und Leiste „morni.net“, Test-Netzwerk `MorniNet` (`plugins/MorniNet/`, `MorniNet-FakeNetwork.jar`;
-  `test/run.sh` räumt ältere Test-Netzwerk-Jars weg). Plugin-Name, Datenordner (`plugins/MorniWintersport/`) und
-  Kennung `wintersport` bleiben – Spielerdaten gelten weiter. Version bleibt 0.1.0 (noch nicht veröffentlicht).
-  34 Unit-Tests, `-Ppaper-26.1 compile` und echter Test **102/102** grün, Server-Log ohne Fehler.
 
 ## Offen
 

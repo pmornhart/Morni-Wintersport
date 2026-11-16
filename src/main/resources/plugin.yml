@@ -1,18 +1,18 @@
 name: MorniWintersport
 version: '${project.version}'
-main: net.morni.wintersport.WintersportPlugin
+main: de.moinmorni.wintersport.WintersportPlugin
 api-version: '1.21'
-description: Wintersport für das Netzwerk morni.net – Riesenslalom, Biathlon und Bobbahn mit Medaillen, 2 bis 12 Leute.
-authors: [morni.net]
-website: https://morni.net
+description: Wintersport für das MoinMorni-Netzwerk – Riesenslalom, Biathlon und Bobbahn mit Medaillen, 2 bis 12 Leute.
+authors: [MoinMorni]
+website: https://moinmorni.net
 # Läuft mit dem Netzwerk-Plugin (Sprache, Party, Statistik) und auch allein.
-softdepend: [MorniNet]
+softdepend: [MoinMorni]
 
 commands:
   wsadmin:
     description: Verwaltung (info, status, start, stopp, neubauen, neuladen, testdatum; fahren/laufen nur zum Testen)
     usage: /wsadmin <info|status|start [wettkampf|slalom|biathlon|bob]|stopp|neubauen|neuladen|testdatum <datum|aus>>
-    permission: morninet.wintersport.admin
+    permission: moinmorni.wintersport.admin
   abstimmen:
     description: Abstimmen, was als Nächstes kommt (Wettkampf oder eine Disziplin)
     usage: /abstimmen [wettkampf|slalom|biathlon|bob]
@@ -39,6 +39,6 @@ commands:
     aliases: [bestenliste, leaderboard]
 
 permissions:
-  morninet.wintersport.admin:
+  moinmorni.wintersport.admin:
     description: Wintersport verwalten und im Kreativmodus in der Winterwelt bauen
     default: op

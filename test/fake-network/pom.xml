@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Nur für Tests: ein Ersatz für das Netzwerk-Plugin „MorniNet“ (Sprache, Party, Statistik, Zustand, Lobby). -->
+<!-- Nur für Tests: ein Ersatz für das Netzwerk-Plugin „MoinMorni“ (Sprache, Party, Statistik, Zustand, Lobby). -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>net.morni</groupId>
-  <artifactId>morninet-fake-network</artifactId>
+  <groupId>de.moinmorni</groupId>
+  <artifactId>moinmorni-fake-network</artifactId>
   <version>0.0.0</version>
   <packaging>jar</packaging>
 
@@ -31,7 +31,7 @@
   </dependencies>
 
   <build>
-    <finalName>MorniNet-FakeNetwork</finalName>
+    <finalName>MoinMorni-FakeNetwork</finalName>
     <plugins>
       <!-- Die Schnittstelle kommt aus diesem Repo (dieselbe Datei wie im Netzwerk) und gehört hier in die Jar. -->
       <plugin>
