@@ -26,6 +26,15 @@ public interface Stage {
     /** Jemand hat den Server oder den Wettkampf verlassen. */
     void quit(Racer r);
 
+    /**
+     * Jemand hat gerade die Verbindung verloren, sein Platz bleibt frei (Zurück ins Spiel): nichts beenden, nur
+     * aufräumen, was ohne ihn stört. Sein Lauf wartet, die Uhr läuft weiter.
+     */
+    void away(Racer r);
+
+    /** Rechtzeitig zurück: in den eigenen Lauf zurück (oder auf die Tribüne, wenn er vorbei ist oder noch kommt). */
+    void rejoin(Racer r, Player p);
+
     /** Jemand gibt diese Disziplin auf (bleibt im Wettkampf). */
     void giveUp(Racer r);
 

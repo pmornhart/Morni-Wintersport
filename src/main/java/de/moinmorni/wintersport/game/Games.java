@@ -57,6 +57,11 @@ public final class Games {
         return current != null && current.racer(uuid) != null ? current : null;
     }
 
+    /** Wettkampf, der auf jemanden wartet, der die Verbindung verloren hat (Platz noch frei) – sonst null. */
+    public Competition waitingFor(UUID uuid) {
+        return current != null && current.waitingFor(uuid) ? current : null;
+    }
+
     /** Spieler ist im Wettkampf oder schaut zu. */
     public Competition of(UUID uuid) {
         return current != null && (current.racer(uuid) != null || current.watching(uuid)) ? current : null;

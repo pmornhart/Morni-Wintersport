@@ -72,8 +72,10 @@ motd=Morni Wintersport Test
 allow-flight=true
 PROPS
 # Testwerte: kurze Countdowns und Pausen.
+# Zurück ins Spiel nach 20 Sekunden (der Test kommt einmal rechtzeitig und einmal zu spät zurück).
 cat > "$SERVER/plugins/MorniWintersport/config.yml" <<'CONF'
 welt: wintersport
+rueckkehr-sekunden: 20
 saison: immer
 tageszeit: tag
 schneefall: true
@@ -114,7 +116,7 @@ done
 echo "== Server starten (Port $PORT, RCON $RCON_PORT)"
 cd "$SERVER"
 : > console.log
-nice -n 15 "$JAVA" -Xms1G -Xmx"$MEMORY" -jar paper.jar --nogui < /dev/null > console.log 2>&1 &
+nice -n 15 "$JAVA" -Xms256M -Xmx"$MEMORY" -jar paper.jar --nogui < /dev/null > console.log 2>&1 &
 PID=$!
 echo "$PID" > "$SERVER/.pid"
 stop_server() {
